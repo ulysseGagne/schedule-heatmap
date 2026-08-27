@@ -1,508 +1,105 @@
-<title>A26 Schedule Heatmap</title>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="When are students in class? A course-density heatmap across undergraduate programs at Université Laval, Fall 2026.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%97%93%EF%B8%8F%3C/text%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
-
-<style>
-/* ============ TOKENS — warm neutrals + a single amber accent (also the heat hue) ============ */
-:root{
-  --ground:#f0ede7; --surface:#ffffff; --surface-2:#f7f4ee; --panel:#1c1710;
-  --ink:#221c15; --ink-soft:#574d40; --muted:#8b8073; --line:#e4dfd5; --line-2:#efebe3;
-  --accent:#d25e2c; --accent-ink:#b0421c; --accent-soft:#f8e3ce; --accent-on:#ffffff;   /* pulled from the heat ramp */
-  --shadow:0 1px 2px rgba(40,30,15,.05),0 6px 20px rgba(40,30,15,.06);
-  --radius:13px; --radius-s:8px;
-}
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
-    --ground:#14110c; --surface:#1d1911; --surface-2:#18140d; --panel:#0c0a06;
-    --ink:#efe9df; --ink-soft:#bcae9c; --muted:#8a7d6c; --line:#2e2820; --line-2:#231e17;
-    --accent:#d2803a; --accent-ink:#eaa254; --accent-soft:#3a2413; --accent-on:#1c1206;   /* pulled from the dark heat ramp (RAMP_DARK[4]) */
-    --shadow:0 1px 2px rgba(0,0,0,.32),0 10px 30px rgba(0,0,0,.4);
-  }
-}
-:root[data-theme="dark"]{
-  --ground:#14110c; --surface:#1d1911; --surface-2:#18140d; --panel:#0c0a06;
-  --ink:#efe9df; --ink-soft:#bcae9c; --muted:#8a7d6c; --line:#2e2820; --line-2:#231e17;
-  --accent:#d2803a; --accent-ink:#eaa254; --accent-soft:#3a2413; --accent-on:#1c1206;   /* pulled from the dark heat ramp (RAMP_DARK[4]) */
-  --shadow:0 1px 2px rgba(0,0,0,.32),0 10px 30px rgba(0,0,0,.4);
-}
-
-*{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
-body{margin:0; background:var(--ground); color:var(--ink);
-  font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
-  font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased;}
-h1,h2,h3{font-family:"Fraunces","Georgia",serif; margin:0; font-weight:600; text-wrap:balance; letter-spacing:-.01em}
-.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
-.tnum{font-variant-numeric:tabular-nums}
-a{color:var(--accent-ink)}
-.wrap{max-width:1200px; margin:0 auto; padding:0 22px}
-
-/* ============ HEADER ============ */
-header.top{background:var(--surface); border-bottom:1px solid var(--line)}
-.top-in{display:flex; align-items:flex-end; justify-content:space-between; gap:20px; padding:26px 0 22px; flex-wrap:wrap}
-.brand{display:flex; flex-direction:column; gap:5px}
-h1.title{font-size:clamp(30px,4.2vw,46px); line-height:1; font-weight:700}
-.tagline{color:var(--ink-soft); font-size:15.5px}
-.head-side{display:flex; flex-direction:column; align-items:flex-end; gap:10px}
-.metaline{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--muted); text-align:right}
-.theme-btn{border:1px solid var(--line); background:var(--surface-2); color:var(--ink-soft);
-  border-radius:99px; padding:6px 14px; font-size:12.5px; cursor:pointer; font-family:inherit}
-.theme-btn:hover{border-color:var(--accent); color:var(--accent-ink)}
-
-/* ============ ONE CONTROL STRIP (two rows, one visual language) ============ */
-.console{position:sticky; top:0; z-index:40; background:color-mix(in srgb,var(--surface) 93%, transparent);
-  backdrop-filter:blur(9px); border-bottom:1px solid var(--line)}
-.controls{display:flex; flex-direction:column; gap:11px; padding:13px 0 14px}
-.crow{display:flex; gap:13px 20px; flex-wrap:wrap; align-items:flex-end}
-.ctrl{display:flex; flex-direction:column; gap:6px}
-.ctrl-lab{font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:600}
-.chips{display:flex; gap:5px; flex-wrap:wrap; align-items:center}
-.chip{border:1px solid var(--line); background:var(--surface-2); color:var(--ink-soft);
-  border-radius:99px; padding:5px 13px; font-size:12.5px; cursor:pointer; white-space:nowrap; font-family:inherit; transition:.12s; user-select:none}
-.chip:hover{border-color:var(--accent)}
-.chip[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:var(--accent-on); font-weight:600}
-.chip.master{border-style:dashed}
-.chip.grp{margin-left:11px}
-.seg{display:inline-flex; border:1px solid var(--line); border-radius:99px; overflow:hidden; background:var(--surface-2); flex:none}
-.seg button{border:0; background:transparent; color:var(--ink-soft); padding:6px 14px; font-size:12.5px; cursor:pointer; font-family:inherit; white-space:nowrap}
-.seg button[aria-pressed="true"]{background:var(--accent); color:var(--accent-on); font-weight:600}
-.seg button:not([aria-pressed="true"]):hover{color:var(--accent-ink)}
-.ctrl-sep{width:1px; align-self:stretch; background:var(--line); margin:3px 0}
-@media(max-width:760px){.ctrl-sep{display:none}}
-.toolbtn{border:1px solid var(--line); background:var(--surface-2); color:var(--ink-soft); border-radius:99px;
-  padding:6px 14px; font-size:12.5px; cursor:pointer; font-family:inherit}
-.toolbtn:hover{border-color:var(--accent); color:var(--accent-ink)}
-
-/* ============ LAYOUT ============ */
-main{padding:26px 0 0}
-.card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow)}
-.card-pad{padding:18px 20px 20px}
-.card > .card-pad > h2{font-size:22px; margin-bottom:14px}
-
-/* ============ HEAT GRID (hero) ============ */
-.heat-scroll{overflow-x:auto}
-table.heat{border-collapse:separate; border-spacing:0; width:100%; min-width:520px}
-table.heat th{font-family:"IBM Plex Sans",sans-serif; font-size:12px; font-weight:600; color:var(--ink-soft); padding:4px 0 10px; text-align:center}
-table.heat th.corner{width:56px}
-table.heat td.time{font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--muted); text-align:right; padding-right:10px; white-space:nowrap; width:56px; vertical-align:middle; height:25px}
-table.heat td.time.hourline{color:var(--ink-soft); font-weight:500}
-.cell{height:25px; border-radius:3px; display:flex; align-items:center; justify-content:center; line-height:1; font-family:"IBM Plex Mono",monospace; font-size:11px;
-  cursor:default; position:relative; border:1px solid transparent}
-.cell.z0{background:var(--surface-2)!important}
-.cell.z0 .n{opacity:.26; color:var(--muted)!important}
-.cell:not(.z0):hover{outline:2px solid var(--ink); outline-offset:-1px; z-index:2}
-td.cellwrap{padding:1px 2px}
-.rowband{border-top:1px dashed var(--line-2)}
-
-/* Tooltip */
-#tip{position:fixed; z-index:100; pointer-events:none; background:var(--panel); color:#f3ede2; border:1px solid rgba(255,255,255,.12);
-  border-radius:10px; padding:10px 12px; font-size:12px; max-width:300px; box-shadow:0 14px 34px rgba(0,0,0,.45); opacity:0; transition:opacity .1s; line-height:1.45}
-#tip .t-h{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.03em; margin-bottom:6px; color:#f0b070}
-#tip .t-row{display:flex; gap:8px; padding:2px 0}
-#tip .t-row .c{font-family:"IBM Plex Mono",monospace; color:#f0c48f; flex:none}
-#tip .t-row .m{color:#c3b8a8; font-size:11px}
-#tip .t-more{color:#9a8f7f; font-size:11px; margin-top:5px}
-
-/* ============ TIMELINE ============ */
-.section{padding:34px 0 0}
-.section > .wrap > h2{font-size:20px; margin-bottom:2px}
-.section .sub{color:var(--muted); font-size:12.5px; margin-bottom:15px}
-.timeline{overflow-x:auto; padding-bottom:4px}
-.tl-weeks{display:grid; grid-template-columns:repeat(16,1fr); gap:4px; min-width:760px}
-.tl-week{border:1px solid var(--line); border-radius:7px; padding:9px 6px; background:var(--surface); min-height:58px; display:flex; flex-direction:column; gap:3px}
-.tl-week .wk{font-family:"IBM Plex Mono",monospace; font-size:10px; color:var(--muted)}
-.tl-week .dt{font-size:11px; color:var(--ink-soft); font-weight:600}
-.tl-week.mark{background:var(--accent-soft); border-color:var(--accent)}
-.tl-week .tag{margin-top:auto; font-size:9.5px; font-weight:600; color:var(--accent-ink); text-transform:uppercase; letter-spacing:.04em}
-
-/* ============ TABLE ============ */
-.tbl-tools{display:flex; gap:12px; align-items:center; margin-bottom:13px; flex-wrap:wrap}
-.search{flex:1 1 220px; max-width:300px; display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:99px; padding:7px 13px; background:var(--surface)}
-.search input{border:0; background:transparent; color:var(--ink); font-family:inherit; font-size:13.5px; width:100%; outline:none}
-.tbl-scroll{overflow-x:auto; border:1px solid var(--line); border-radius:var(--radius); background:var(--surface)}
-table.courses{border-collapse:collapse; width:100%; min-width:780px; font-size:13px}
-table.courses th{text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:600;
-  padding:11px 13px; border-bottom:1px solid var(--line); background:var(--surface-2); cursor:pointer; white-space:nowrap; position:sticky; top:0}
-table.courses th:hover{color:var(--accent-ink)}
-table.courses th .ar{opacity:.5; font-size:9px}
-table.courses td{padding:9px 13px; border-bottom:1px solid var(--line-2); vertical-align:top}
-table.courses tr:last-child td{border-bottom:0}
-table.courses tr:hover td{background:var(--surface-2)}
-.ccode{font-family:"IBM Plex Mono",monospace; font-weight:600; color:var(--accent-ink); white-space:nowrap}
-.ctitle{color:var(--ink); font-size:12.5px}
-.badge{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:10px; padding:1px 6px; border-radius:5px; border:1px solid var(--line); background:var(--surface-2); color:var(--ink-soft); margin:1px 2px 1px 0; white-space:nowrap}
-.tag-opt{font-family:"IBM Plex Mono",monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--accent-ink); border:1px solid var(--accent); border-radius:5px; padding:0 5px; margin-left:5px}
-.mode-chip{font-size:10px; padding:1px 7px; border-radius:99px; font-family:"IBM Plex Mono",monospace; font-weight:600; white-space:nowrap; display:inline-block}
-.mode-chip.ip{background:var(--accent-soft); color:var(--accent-ink)}
-.mode-chip.on{background:var(--line-2); color:var(--muted)}
-
-footer{border-top:1px solid var(--line); margin-top:38px; padding:22px 0 40px; color:var(--muted); font-size:12.5px; line-height:1.7}
-footer a{color:var(--accent-ink)}
-footer b{color:var(--ink-soft)}
-
-.toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(18px); background:var(--panel); color:#f3ede2;
-  padding:10px 18px; border-radius:99px; font-size:13px; box-shadow:0 12px 30px rgba(0,0,0,.4); opacity:0; pointer-events:none; transition:.2s; z-index:200}
-.toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
-@media (prefers-reduced-motion:reduce){*{transition:none !important}}
-:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
-@media(max-width:640px){.wrap{padding:0 14px}}
-</style>
-
-<header class="top">
- <div class="wrap top-in">
-  <div class="brand">
-    <h1 class="title">A26 Schedule Heatmap</h1>
-    <div class="tagline">When are Université Laval's CS-related undergraduates in class?</div>
-  </div>
-  <div class="head-side">
-    <button class="theme-btn" id="themeBtn" aria-label="Change theme"><span id="themeTxt">Auto</span></button>
-    <div class="metaline" id="metaline"></div>
-  </div>
- </div>
-</header>
-
-<div class="console">
- <div class="wrap">
-  <div class="controls" id="controls">
-   <div class="crow">
-     <div class="ctrl" style="flex:1 1 auto">
-       <div class="ctrl-lab">Programs</div>
-       <div class="chips" id="progChips"></div>
-     </div>
-   </div>
-   <div class="crow">
-     <div class="ctrl">
-       <div class="ctrl-lab">Year</div>
-       <div class="chips" id="yearChips"></div>
-     </div>
-     <div class="ctrl-sep"></div>
-     <div class="ctrl">
-       <div class="ctrl-lab">Measure</div>
-       <div class="seg" id="metricSeg">
-         <button data-metric="students" aria-pressed="true">Students</button>
-         <button data-metric="classes" aria-pressed="false">Classes</button>
-       </div>
-     </div>
-     <div class="ctrl">
-       <div class="ctrl-lab">Course set</div>
-       <div class="seg" id="setSeg">
-         <button data-set="core" aria-pressed="true">Core</button>
-         <button data-set="all" aria-pressed="false">All courses</button>
-       </div>
-     </div>
-     <div class="ctrl">
-       <div class="ctrl-lab">Classes shown</div>
-       <div class="seg" id="shownSeg">
-         <button data-shown="all" aria-pressed="true">All</button>
-         <button data-shown="in_person" aria-pressed="false">In-person</button>
-       </div>
-     </div>
-     <div class="ctrl-sep"></div>
-     <div class="ctrl">
-       <div class="ctrl-lab">&nbsp;</div>
-       <div style="display:flex; gap:8px">
-         <button class="toolbtn" id="resetBtn">Reset</button>
-         <button class="toolbtn" id="shareBtn" title="Copy a link that restores this view">Share</button>
-       </div>
-     </div>
-   </div>
-  </div>
- </div>
-</div>
-
-<main>
- <div class="wrap">
-  <div class="card"><div class="card-pad">
-    <h2>Typical week</h2>
-    <div class="heat-scroll">
-      <table class="heat" id="heat"><thead></thead><tbody></tbody></table>
-    </div>
-  </div></div>
- </div>
-
- <div class="section"><div class="wrap">
-   <h2>The 16 weeks</h2>
-   <div class="timeline"><div class="tl-weeks" id="tlWeeks"></div></div>
- </div></div>
-
- <div class="section"><div class="wrap">
-   <h2>All courses</h2>
-   <div class="sub" id="tblCount"></div>
-   <div class="tbl-tools">
-     <div class="search"><span style="color:var(--muted)">⌕</span><input type="text" id="tblSearch" placeholder="Filter by code or title…"></div>
-     <button class="chip" id="tblFollow" aria-pressed="true">Follow filters</button>
-   </div>
-   <div class="tbl-scroll">
-     <table class="courses" id="courseTbl">
-       <thead><tr>
-         <th data-sort="code">Course <span class="ar">▾</span></th>
-         <th data-sort="name">Title</th>
-         <th data-sort="progs">Programs (year)</th>
-         <th data-sort="sched">Schedule · Fall 2026</th>
-         <th data-sort="cap">Students</th>
-         <th data-sort="mode">Mode</th>
-       </tr></thead>
-       <tbody></tbody>
-     </table>
-   </div>
- </div></div>
-</main>
-
-<footer><div class="wrap">
-  by <a href="https://github.com/ulysseGagne">Ulysse Gagné</a> · Club d'intelligence artificielle, Université Laval<br>
-  Built from publicly available <a href="https://www.ulaval.ca/etudes/cours">ULaval course data</a> — an unofficial page, not affiliated with the University.
-</div></footer>
-
-<div id="tip"></div>
-<div class="toast" id="toast"></div>
-
-<script src="schedule-data.js"></script>
-<script>
-"use strict";
-const D=window.SCHEDULE_DATA, MEET=D.meetings, COURSES=D.courses, META=D.meta;
-const DAYS=['Mon','Tue','Wed','Thu','Fri'];
-const DAY_LONG={Mon:'Monday',Tue:'Tuesday',Wed:'Wednesday',Thu:'Thursday',Fri:'Friday'};
-const DAY_SHORT={Mon:'Mon',Tue:'Tue',Wed:'Wed',Thu:'Thu',Fri:'Fri'};
-const PROG_ORDER=['IFT','GLO','GIF','GEL','IIG','STAT','MAT'];   // grouped: CS · eng/integrated · math
-const GROUP_START=new Set(['IFT','GIF','STAT']);
-const PROG_FR={}; for(const k in META.programs) PROG_FR[k]=META.programs[k][0]+' ('+META.programs[k][1]+')';
-const T0=510,T1=1290,STEP=30;
-const slots=[]; for(let t=T0;t<T1;t+=STEP) slots.push(t);
-const fmt=t=>`${Math.floor(t/60)}h${String(t%60).padStart(2,'0')}`;
-const nAll=COURSES.length;
-
-const DEFAULTS=()=>({programs:new Set(PROG_ORDER), years:new Set([1,2,3,4]),
-  metric:'students', courseSet:'core', classesShown:'all'});
-let state=DEFAULTS();
-let followFilters=true;
-
-/* ---------- filtering + density ---------- */
-function passFilters(m){
-  if(m.optional && state.courseSet!=='all') return false;
-  if(state.classesShown==='in_person' && m.mode!=='in_person') return false;
-  if(!m.programs.some(p=>state.programs.has(p))) return false;
-  if(!m.years.some(y=>state.years.has(y))) return false;
-  return true;
-}
-function activeMeetings(){ return MEET.filter(passFilters); }
-const overlaps=(m,a,b)=>m.day && m.start!=null && m.start<b && m.end>a;
-const isStudents=()=>state.metric==='students';
-function valAt(day,a,b,list){ let n=0; for(const m of list){ if(m.day===day && overlaps(m,a,b)) n += isStudents()?(m.capacity||0):1; } return n; }
-function fmtVal(v){ if(!isStudents()) return ''+v; if(v>=1000) return (v/1000).toFixed(v>=10000?0:1)+'k'; return ''+v; }
-
-/* ---------- monochrome amber ramp (theme-aware) ---------- */
-const RAMP_LIGHT=[[251,231,198],[247,206,147],[240,172,94],[229,130,60],[210,94,44],[176,60,28],[143,46,22]];
-const RAMP_DARK =[[40,28,18],[78,44,26],[126,68,34],[174,98,46],[210,128,58],[234,162,84],[248,194,116]];
-function isDark(){ const a=document.documentElement.getAttribute('data-theme'); if(a==='dark')return true; if(a==='light')return false; return matchMedia('(prefers-color-scheme:dark)').matches; }
-const lerp=(a,b,t)=>a+(b-a)*t;
-function rampRGB(t){
-  t=Math.max(0,Math.min(1,t)); const R=isDark()?RAMP_DARK:RAMP_LIGHT;
-  const x=t*(R.length-1), i=Math.min(R.length-2,Math.floor(x)), f=x-i;
-  return [Math.round(lerp(R[i][0],R[i+1][0],f)),Math.round(lerp(R[i][1],R[i+1][1],f)),Math.round(lerp(R[i][2],R[i+1][2],f))];
-}
-const textOn=rgb=>(0.299*rgb[0]+0.587*rgb[1]+0.114*rgb[2])<140?'#f6efe4':'#2a2117';
-/* adaptive scale: spread shades by the value distribution so the freest occupied
-   slot is the lightest, the busiest the darkest, and every shade gets used */
-function buildScale(vals){
-  const s=vals.slice().sort((a,b)=>a-b), N=s.length;
-  if(N===0) return ()=>0;
-  const groups=[]; let i=0;
-  while(i<N){ let j=i; while(j<N && s[j]===s[i]) j++; groups.push({v:s[i], mid:((i+j)/2)/N}); i=j; }
-  if(groups.length===1){ const o=groups[0].v; return v=>0.55; }
-  const lo=groups[0].mid, hi=groups[groups.length-1].mid, span=hi-lo||1, pos={};
-  for(const g of groups) pos[g.v]=(g.mid-lo)/span;
-  return v=> (v in pos ? pos[v] : 0);
-}
-
-/* ---------- heatmap ---------- */
-function renderHeat(){
-  const list=activeMeetings(); const vals={}; const nz=[];
-  for(const d of DAYS) for(const t of slots){ const v=valAt(d,t,t+STEP,list); vals[d+'-'+t]=v; if(v>0) nz.push(v); }
-  const scale=buildScale(nz);
-  const head=document.querySelector('#heat thead'), body=document.querySelector('#heat tbody');
-  head.innerHTML='<tr><th class="corner"></th>'+DAYS.map(d=>`<th>${DAY_LONG[d]}</th>`).join('')+'</tr>';
-  let rows='';
-  for(const t of slots){
-    const hour=t%60===0;
-    rows+=`<tr class="${hour?'rowband':''}"><td class="time ${hour?'hourline':''}">${hour?fmt(t):''}</td>`;
-    for(const d of DAYS){
-      const v=vals[d+'-'+t];
-      if(v===0){ rows+=`<td class="cellwrap"><div class="cell z0" data-d="${d}" data-t="${t}" data-v="0"><span class="n">0</span></div></td>`; continue; }
-      const rgb=rampRGB(scale(v));
-      rows+=`<td class="cellwrap"><div class="cell" data-d="${d}" data-t="${t}" data-v="${v}" style="background:rgb(${rgb[0]},${rgb[1]},${rgb[2]})"><span class="n" style="color:${textOn(rgb)}">${fmtVal(v)}</span></div></td>`;
-    }
-    rows+='</tr>';
-  }
-  body.innerHTML=rows;
-}
-
-/* ---------- tooltip ---------- */
-const tip=document.getElementById('tip');
-document.getElementById('heat').addEventListener('mousemove',e=>{
-  const cell=e.target.closest('.cell'); if(!cell||cell.dataset.v==='0'){tip.style.opacity=0;return;}
-  const d=cell.dataset.d,t=+cell.dataset.t,list=activeMeetings();
-  const here=list.filter(m=>m.day===d&&overlaps(m,t,t+STEP)).sort((a,b)=>(b.capacity||0)-(a.capacity||0));
-  const seats=here.reduce((s,m)=>s+(m.capacity||0),0);
-  tip.innerHTML=`<div class="t-h">${DAY_LONG[d]} ${fmt(t)}–${fmt(t+STEP)} · ${here.length} ${here.length===1?'class':'classes'} · ${seats} students</div>`+
-    here.slice(0,8).map(m=>`<div class="t-row"><span class="c">${m.code}</span><span class="m">${fmt(m.start)}–${fmt(m.end)} · ${m.mode==='in_person'?(m.building||'In person'):'Online'} · ${m.capacity}${m.optional?' · option':''}</span></div>`).join('')+
-    (here.length>8?`<div class="t-more">+${here.length-8} more…</div>`:'');
-  tip.style.opacity=1;
-  tip.style.left=Math.min(e.clientX+14,innerWidth-310)+'px';
-  tip.style.top=Math.min(e.clientY+14,innerHeight-tip.offsetHeight-10)+'px';
-});
-document.getElementById('heat').addEventListener('mouseleave',()=>tip.style.opacity=0);
-
-/* ---------- timeline ---------- */
-function isoAdd(iso,days){ const d=new Date(iso+'T12:00:00'); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
-function renderTimeline(){
-  const start='2026-08-31', MONTH=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const reading=META.calendar.find(c=>c.kind==='reading'), exam=META.calendar.find(c=>c.kind==='exam');
-  let html='';
-  for(let w=0;w<16;w++){
-    const mon=isoAdd(start,w*7), sun=isoAdd(mon,6), dm=new Date(mon+'T12:00:00');
-    let cls='',tag='';
-    if(reading&&reading.start<=sun&&reading.end>=mon){cls='mark';tag='Reading';}
-    else if(exam&&exam.start<=sun&&exam.end>=mon){cls='mark';tag='Exams';}
-    html+=`<div class="tl-week ${cls}"><div class="wk">W${w+1}</div><div class="dt">${MONTH[dm.getMonth()]} ${dm.getDate()}</div>${tag?`<div class="tag">${tag}</div>`:''}</div>`;
-  }
-  document.getElementById('tlWeeks').innerHTML=html;
-}
-
-/* ---------- table ---------- */
-let sortKey='code', sortDir=1;
-function schedSummary(c){
-  const ms=MEET.filter(m=>m.code===c.code);
-  if(!ms.length) return '<span style="color:var(--muted)">—</span>';
-  const byday={}; ms.forEach(m=>{(byday[m.day]=byday[m.day]||[]).push(m);});
-  return DAYS.filter(d=>byday[d]).map(d=>{
-    const times=[...new Set(byday[d].map(m=>fmt(m.start)+'–'+fmt(m.end)))];
-    return `<span class="mono" style="font-size:11px">${DAY_SHORT[d]} ${times.join(', ')}</span>`;
-  }).join('<br>');
-}
-function courseRows(){
-  const q=document.getElementById('tblSearch').value.trim().toLowerCase();
-  const capOf=c=>{const ms=MEET.filter(m=>m.code===c.code); return ms.length?Math.max(...ms.map(m=>m.capacity||0)):0;};
-  const pmode=c=>{const ms=MEET.filter(m=>m.code===c.code); if(!ms.length) return '—'; return ms.some(m=>m.mode==='in_person')?'ip':'on';};
-  let list=COURSES.slice();
-  if(followFilters) list=list.filter(c=>c.programs.some(p=>state.programs.has(p))&&c.years.some(y=>state.years.has(y)));
-  if(q) list=list.filter(c=>c.code.toLowerCase().includes(q)||(c.name||'').toLowerCase().includes(q));
-  list.sort((a,b)=>{ let x,y;
-    switch(sortKey){
-      case 'name':x=a.name||'~';y=b.name||'~';break;
-      case 'progs':x=a.programs[0]||'';y=b.programs[0]||'';break;
-      case 'cap':x=capOf(a);y=capOf(b);break;
-      case 'mode':x=pmode(a);y=pmode(b);break;
-      case 'sched':x=(a.optional?1:0);y=(b.optional?1:0);break;
-      default:x=a.code;y=b.code;
-    }
-    return (x>y?1:x<y?-1:0)*sortDir;
-  });
-  document.getElementById('tblCount').textContent=`${list.length} courses (${list.filter(c=>!c.optional).length} core · ${list.filter(c=>c.optional).length} electives)`;
-  document.querySelector('#courseTbl tbody').innerHTML=list.map(c=>{
-    const cp=capOf(c), pm=pmode(c);
-    const badges=c.tags.map(t=>`<span class="badge" title="${PROG_FR[t.program]||t.program}">${t.program}·${t.year}</span>`).join('');
-    const opt=c.optional?'<span class="tag-opt">option</span>':'';
-    const mc=pm==='ip'?'<span class="mode-chip ip">in person</span>':pm==='on'?'<span class="mode-chip on">online</span>':'<span class="mode-chip on">—</span>';
-    return `<tr>
-      <td><span class="ccode">${c.code}</span>${opt}</td>
-      <td><span class="ctitle">${c.name||'<span style=\"color:var(--muted)\">—</span>'}</span></td>
-      <td>${badges}</td>
-      <td>${schedSummary(c)}</td>
-      <td class="tnum">${cp||'—'}</td>
-      <td>${mc}</td>
-    </tr>`;
-  }).join('');
-}
-
-/* ---------- chips ---------- */
-function buildChips(){
-  document.getElementById('progChips').innerHTML=`<button class="chip master" id="progAll">All</button>`+
-    PROG_ORDER.map(p=>`<button class="chip${GROUP_START.has(p)?' grp':''}" data-prog="${p}" aria-pressed="true" title="${PROG_FR[p]||p}">${p}</button>`).join('');
-  document.getElementById('yearChips').innerHTML=[1,2,3,4].map(y=>`<button class="chip" data-year="${y}" aria-pressed="true">${y}</button>`).join('');
-  document.getElementById('metaline').textContent=`${PROG_ORDER.length} programs · ${nAll} courses · Fall 2026`;
-}
-function refreshChips(){
-  document.querySelectorAll('[data-prog]').forEach(b=>b.setAttribute('aria-pressed',state.programs.has(b.dataset.prog)));
-  document.getElementById('progAll').setAttribute('aria-pressed',PROG_ORDER.every(p=>state.programs.has(p)));
-  document.querySelectorAll('[data-year]').forEach(b=>b.setAttribute('aria-pressed',state.years.has(+b.dataset.year)));
-  document.querySelectorAll('#metricSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.metric===state.metric));
-  document.querySelectorAll('#setSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.set===state.courseSet));
-  document.querySelectorAll('#shownSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.shown===state.classesShown));
-}
-const toggle=(set,v)=>set.has(v)?set.delete(v):set.add(v);
-document.getElementById('controls').addEventListener('click',e=>{
-  const b=e.target.closest('button'); if(!b) return;
-  if(b.id==='progAll'){ state.programs=PROG_ORDER.every(p=>state.programs.has(p))?new Set():new Set(PROG_ORDER); }
-  else if(b.dataset.prog) toggle(state.programs,b.dataset.prog);
-  else if(b.dataset.year) toggle(state.years,+b.dataset.year);
-  else if(b.dataset.metric) state.metric=b.dataset.metric;
-  else if(b.dataset.set) state.courseSet=b.dataset.set;
-  else if(b.dataset.shown) state.classesShown=b.dataset.shown;
-  else return;
-  refreshChips(); renderAll();
-});
-document.getElementById('resetBtn').addEventListener('click',()=>{ state=DEFAULTS(); refreshChips(); renderAll(); });
-document.getElementById('tblFollow').addEventListener('click',()=>{ followFilters=!followFilters; document.getElementById('tblFollow').setAttribute('aria-pressed',followFilters); courseRows(); });
-
-/* ---------- URL state ?s= (opaque, bit-packed, v3) ---------- */
-function b64url(bytes){ let s=btoa(String.fromCharCode.apply(null,bytes)); return s.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
-function unb64url(str){ str=str.replace(/-/g,'+').replace(/_/g,'/'); const bin=atob(str); const a=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i); return a; }
-function encodeState(){
-  let bits=0,n=0; const put=(v,w)=>{ bits|=(v&((1<<w)-1))<<n; n+=w; };
-  put(3,4); put(isStudents()?1:0,1); put(state.courseSet==='all'?1:0,1); put(state.classesShown==='in_person'?1:0,1);
-  let pv=0; PROG_ORDER.forEach((p,i)=>{ if(state.programs.has(p)) pv|=1<<i; }); put(pv,7);
-  let yv=0; [1,2,3,4].forEach((y,i)=>{ if(state.years.has(y)) yv|=1<<i; }); put(yv,4);
-  const nb=Math.ceil(n/8),arr=new Uint8Array(nb); for(let i=0;i<nb;i++) arr[i]=(bits>>(i*8))&0xff;
-  return b64url(arr);
-}
-function decodeState(tok){
-  try{ const arr=unb64url(tok); let bits=0; for(let i=0;i<arr.length;i++) bits|=arr[i]<<(i*8);
-    let n=0; const get=w=>{ const v=(bits>>n)&((1<<w)-1); n+=w; return v; };
-    if(get(4)!==3) return false;
-    const s=DEFAULTS();
-    s.metric=get(1)?'students':'classes'; s.courseSet=get(1)?'all':'core'; s.classesShown=get(1)?'in_person':'all';
-    const pv=get(7); s.programs=new Set(PROG_ORDER.filter((p,i)=>pv&(1<<i)));
-    const yv=get(4); s.years=new Set([1,2,3,4].filter((y,i)=>yv&(1<<i)));
-    state=s; return true;
-  }catch(e){ return false; }
-}
-function syncURL(){ try{ history.replaceState(null,'',location.pathname+'?s='+encodeState()); }catch(e){} }
-let toastT; function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),1800); }
-document.getElementById('shareBtn').addEventListener('click',()=>{
-  const url=location.href.split('?')[0]+'?s='+encodeState();
-  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(()=>showToast('Share link copied'),()=>prompt('Copy this link:',url));
-  else prompt('Copy this link:',url);
-});
-
-/* ---------- theme (light ⇄ dark only) ---------- */
-function applyTheme(t){                                   // t = 'light' | 'dark'
-  document.documentElement.setAttribute('data-theme',t);
-  try{ localStorage.setItem('sh-theme',t); }catch(e){}
-  document.getElementById('themeTxt').textContent = t==='dark'?'Dark':'Light';
-}
-let curTheme; try{ curTheme=localStorage.getItem('sh-theme'); }catch(e){}
-if(curTheme!=='light' && curTheme!=='dark') curTheme = matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';
-applyTheme(curTheme);
-document.getElementById('themeBtn').addEventListener('click',()=>{ curTheme=curTheme==='dark'?'light':'dark'; applyTheme(curTheme); renderHeat(); });
-
-/* ---------- table wiring ---------- */
-document.querySelectorAll('#courseTbl th').forEach(th=>th.addEventListener('click',()=>{
-  const k=th.dataset.sort; if(k===sortKey) sortDir*=-1; else {sortKey=k;sortDir=1;}
-  document.querySelectorAll('#courseTbl th .ar').forEach(a=>a.textContent='');
-  const ar=th.querySelector('.ar'); if(ar) ar.textContent=sortDir>0?'▾':'▴';
-  courseRows();
-}));
-document.getElementById('tblSearch').addEventListener('input',courseRows);
-
-/* ---------- render ---------- */
-function renderAll(){ renderHeat(); courseRows(); syncURL(); }
-(function init(){
-  const s=new URLSearchParams(location.search).get('s'); if(s) decodeState(s);
-  buildChips(); refreshChips(); renderTimeline(); renderAll();
-})();
-</script>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Description" content="When are students in class? A course-density heatmap across undergraduate programs at Université Laval, Fall 2026.">
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="2575.5">
+  <style type="text/css">
+    body {background-color: #0e0d0b}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 15.5px 'Helvetica Neue'; color: #9e8d77; -webkit-text-stroke: #9e8d77}
+    p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 12.5px 'Helvetica Neue'; color: #9e8d77; -webkit-text-stroke: #9e8d77; background-color: #100e0b}
+    p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: right; font: 11.5px Courier; color: #635747; -webkit-text-stroke: #635747; min-height: 14.0px}
+    p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 10.0px 'Helvetica Neue'; color: #635747; -webkit-text-stroke: #635747}
+    p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 15.0px 'Helvetica Neue'; color: #e6dece; -webkit-text-stroke: #e6dece; background-color: #1a1713; min-height: 17.0px}
+    p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 12.5px 'Helvetica Neue'; color: #110d09; -webkit-text-stroke: #110d09; background-color: #b85823}
+    p.p8 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 12.5px 'Helvetica Neue'; color: #9e8d77; -webkit-text-stroke: #9e8d77}
+    p.p10 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px 'Helvetica Neue'; color: #e6dece; -webkit-text-stroke: #e6dece; min-height: 14.0px}
+    p.p12 {margin: 0.0px 0.0px 0.0px 0.0px; font: 15.0px 'Helvetica Neue'; color: #e6dece; -webkit-text-stroke: #e6dece; min-height: 17.0px}
+    p.p13 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.5px 'Helvetica Neue'; color: #635747; -webkit-text-stroke: #635747; min-height: 15.0px}
+    p.p14 {margin: 0.0px 0.0px 0.0px 0.0px; font: 15.0px Menlo; color: #635747; -webkit-text-stroke: #635747}
+    p.p15 {margin: 0.0px 0.0px 0.0px 0.0px; font: 13.5px 'Helvetica Neue'; color: #e6dece; -webkit-text-stroke: #e6dece; min-height: 16.0px}
+    p.p16 {margin: 0.0px 0.0px 0.0px 0.0px; font: 10.5px 'Helvetica Neue'; color: #635747; -webkit-text-stroke: #635747}
+    p.p17 {margin: 0.0px 0.0px 0.0px 0.0px; font: 13.0px 'Helvetica Neue'; color: #e6dece; -webkit-text-stroke: #e6dece; min-height: 15.0px}
+    p.p18 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.5px 'Helvetica Neue'; color: #635747; -webkit-text-stroke: #635747}
+    p.p19 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px 'Helvetica Neue'; color: #ece4d3; -webkit-text-stroke: #ece4d3; background-color: #0b0a08; min-height: 14.0px}
+    p.p20 {margin: 0.0px 0.0px 0.0px 0.0px; font: 13.0px 'Helvetica Neue'; color: #ece4d3; -webkit-text-stroke: #ece4d3; background-color: #0b0a08; min-height: 15.0px}
+    span.s1 {font-kerning: none; background-color: #11100d}
+    span.s2 {font-kerning: none}
+    span.s3 {font-kerning: none; background-color: rgba(17, 16, 13, 0.93)}
+    span.s4 {font-kerning: none; background-color: #100e0b}
+    span.s5 {font: 9.0px 'Lucida Grande'; font-kerning: none; background-color: #11100d}
+    span.s6 {text-decoration: underline ; font-kerning: none; color: #da7e34; background-color: transparent; -webkit-text-stroke: 0px #da7e34}
+    table.t1 {min-width: 780.0px; border-collapse: collapse}
+    td.td1 {width: 90.3px; background-color: #100e0b; border-style: solid; border-width: 0.0px 0.0px 1.0px 0.0px; border-color: #635747 #635747 #1a1713 #635747; padding: 11.0px 13.0px 11.0px 13.0px}
+    td.td2 {width: 64.3px; background-color: #100e0b; border-style: solid; border-width: 0.0px 0.0px 1.0px 0.0px; border-color: #635747 #635747 #1a1713 #635747; padding: 11.0px 13.0px 11.0px 13.0px}
+    td.td3 {width: 144.5px; background-color: #100e0b; border-style: solid; border-width: 0.0px 0.0px 1.0px 0.0px; border-color: #635747 #635747 #1a1713 #635747; padding: 11.0px 13.0px 11.0px 13.0px}
+    td.td4 {width: 164.1px; background-color: #100e0b; border-style: solid; border-width: 0.0px 0.0px 1.0px 0.0px; border-color: #635747 #635747 #1a1713 #635747; padding: 11.0px 13.0px 11.0px 13.0px}
+    td.td5 {width: 98.6px; background-color: #100e0b; border-style: solid; border-width: 0.0px 0.0px 1.0px 0.0px; border-color: #635747 #635747 #1a1713 #635747; padding: 11.0px 13.0px 11.0px 13.0px}
+    td.td6 {width: 66.2px; background-color: #100e0b; border-style: solid; border-width: 0.0px 0.0px 1.0px 0.0px; border-color: #635747 #635747 #1a1713 #635747; padding: 11.0px 13.0px 11.0px 13.0px}
+  </style>
+</head>
+<body>
+<h1 style="margin: 0.0px 0.0px 0.0px 0.0px; font: 33.6px 'Helvetica Neue'; color: #e6dece; -webkit-text-stroke: #e6dece"><span class="s1">A26 Schedule Heatmap</span></h1>
+<p class="p2"><span class="s1">When are Université Laval's CS-related undergraduates in class?</span></p>
+<p class="p3"><span class="s2">Auto</span></p>
+<p class="p4"><span class="s2"></span><br></p>
+<p class="p5"><span class="s3">PROGRAMS</span></p>
+<p class="p5"><span class="s3">YEAR</span></p>
+<p class="p6"><span class="s2"></span><br></p>
+<p class="p5"><span class="s3">MEASURE</span></p>
+<p class="p7"><span class="s2">Students</span></p>
+<p class="p8"><span class="s4">Classes</span></p>
+<p class="p5"><span class="s3">COURSE SET</span></p>
+<p class="p7"><span class="s2">Core</span></p>
+<p class="p8"><span class="s4">All courses</span></p>
+<p class="p5"><span class="s3">CLASSES SHOWN</span></p>
+<p class="p7"><span class="s2">All</span></p>
+<p class="p8"><span class="s4">In-person</span></p>
+<p class="p6"><span class="s2"></span><br></p>
+<p class="p5"><span class="s3"> </span></p>
+<p class="p3"><span class="s2">Reset</span></p>
+<p class="p3"><span class="s2">Share</span></p>
+<h2 style="margin: 0.0px 0.0px 14.0px 0.0px; font: 22.0px 'Helvetica Neue'; color: #e6dece; -webkit-text-stroke: #e6dece"><span class="s1">Typical week</span></h2>
+<p class="p10"><span class="s2"></span><br></p>
+<p class="p10"><span class="s2"></span><br></p>
+<h2 style="margin: 0.0px 0.0px 2.0px 0.0px; font: 20.0px 'Helvetica Neue'; color: #e6dece; -webkit-text-stroke: #e6dece"><span class="s2">The 16 weeks</span></h2>
+<p class="p12"><span class="s2"></span><br></p>
+<h2 style="margin: 0.0px 0.0px 2.0px 0.0px; font: 20.0px 'Helvetica Neue'; color: #e6dece; -webkit-text-stroke: #e6dece"><span class="s2">All courses</span></h2>
+<p class="p13"><span class="s2"></span><br></p>
+<p class="p14"><span class="s1">⌕</span></p>
+<p class="p15"><span class="s2"></span><br></p>
+<p class="p7"><span class="s2">Follow filters</span></p>
+<table cellspacing="0" cellpadding="0" class="t1">
+  <tbody>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p16"><span class="s1">COURSE </span><span class="s5">▾</span></p>
+      </td>
+      <td valign="middle" class="td2">
+        <p class="p16"><span class="s1">TITLE</span></p>
+      </td>
+      <td valign="middle" class="td3">
+        <p class="p16"><span class="s1">PROGRAMS (YEAR)</span></p>
+      </td>
+      <td valign="middle" class="td4">
+        <p class="p16"><span class="s1">SCHEDULE · FALL 2026</span></p>
+      </td>
+      <td valign="middle" class="td5">
+        <p class="p16"><span class="s1">STUDENTS</span></p>
+      </td>
+      <td valign="middle" class="td6">
+        <p class="p16"><span class="s1">MODE</span></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p class="p17"><span class="s2"></span><br></p>
+<p class="p18"><span class="s2">by <a href="https://github.com/ulysseGagne"><span class="s6">Ulysse Gagné</span></a> · Club d'intelligence artificielle, Université Laval</span></p>
+<p class="p18"><span class="s2">Built from publicly available <a href="https://www.ulaval.ca/etudes/cours"><span class="s6">course data</span></a></span></p>
+<p class="p19"><span class="s2"></span><br></p>
+<p class="p20"><span class="s2"></span><br></p>
+</body>
+</html>
