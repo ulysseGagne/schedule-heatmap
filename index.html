@@ -184,8 +184,8 @@ footer b{color:var(--ink-soft)}
      <div class="ctrl">
        <div class="ctrl-lab">Measure</div>
        <div class="seg" id="metricSeg">
-         <button data-metric="students" aria-pressed="true">Students</button>
-         <button data-metric="classes" aria-pressed="false">Classes</button>
+         <button data-metric="classes" aria-pressed="true">Classes</button>
+         <button data-metric="students" aria-pressed="false">Students</button>
        </div>
      </div>
      <div class="ctrl">
@@ -268,8 +268,8 @@ const D=window.SCHEDULE_DATA, MEET=D.meetings, COURSES=D.courses, META=D.meta;
 const DAYS=['Mon','Tue','Wed','Thu','Fri'];
 const DAY_LONG={Mon:'Monday',Tue:'Tuesday',Wed:'Wednesday',Thu:'Thursday',Fri:'Friday'};
 const DAY_SHORT={Mon:'Mon',Tue:'Tue',Wed:'Wed',Thu:'Thu',Fri:'Fri'};
-const PROG_ORDER=['IFT','GLO','GIF','GEL','IIG','STAT','MAT'];   // grouped: CS · eng/integrated · math
-const GROUP_START=new Set(['IFT','GIF','STAT']);
+const PROG_ORDER=['IFT','GLO','GIF','GEL','IIG','STT','MAT'];   // grouped: CS · eng/integrated · math
+const GROUP_START=new Set(['IFT','GIF','STT']);
 const PROG_FR={}; for(const k in META.programs) PROG_FR[k]=META.programs[k][0]+' ('+META.programs[k][1]+')';
 const T0=510,T1=1290,STEP=30;
 const slots=[]; for(let t=T0;t<T1;t+=STEP) slots.push(t);
@@ -277,7 +277,7 @@ const fmt=t=>`${Math.floor(t/60)}h${String(t%60).padStart(2,'0')}`;
 const nAll=COURSES.length;
 
 const DEFAULTS=()=>({programs:new Set(PROG_ORDER), years:new Set([1,2,3,4]),
-  metric:'students', courseSet:'core', classesShown:'all'});
+  metric:'classes', courseSet:'core', classesShown:'all'});
 let state=DEFAULTS();
 let followFilters=true;
 
@@ -454,7 +454,8 @@ function b64url(bytes){ let s=btoa(String.fromCharCode.apply(null,bytes)); retur
 function unb64url(str){ str=str.replace(/-/g,'+').replace(/_/g,'/'); const bin=atob(str); const a=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i); return a; }
 function encodeState(){
   let bits=0,n=0; const put=(v,w)=>{ bits|=(v&((1<<w)-1))<<n; n+=w; };
-  put(3,4); put(isStudents()?1:0,1); put(state.courseSet==='all'?1:0,1); put(state.classesShown==='in_person'?1:0,1);
+  // single-choice toggles: bit 0 = default (Classes / Core / All), 1 = the alternative
+  put(3,4); put(state.metric==='students'?1:0,1); put(state.courseSet==='all'?1:0,1); put(state.classesShown==='in_person'?1:0,1);
   let pv=0; PROG_ORDER.forEach((p,i)=>{ if(state.programs.has(p)) pv|=1<<i; }); put(pv,7);
   let yv=0; [1,2,3,4].forEach((y,i)=>{ if(state.years.has(y)) yv|=1<<i; }); put(yv,4);
   const nb=Math.ceil(n/8),arr=new Uint8Array(nb); for(let i=0;i<nb;i++) arr[i]=(bits>>(i*8))&0xff;
